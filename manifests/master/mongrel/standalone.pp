@@ -7,6 +7,13 @@ class puppet::master::mongrel::standalone inherits puppet::master {
     /RedHat|CentOS|Fedora/   => 'rubygem-mongrel',
   }
 
+  $nb_workers = $puppet_master_mongrel_standalone_nbworkers ? {
+    '' => '4',
+    default => $puppet_master_mongrel_standalone_nbworkers,
+  }
+
+  $base_port = 18140
+
   package {'mongrel':
     ensure => present,
     name   => $mongrel,
@@ -29,15 +36,17 @@ class puppet::master::mongrel::standalone inherits puppet::master {
       'set PORT 18140',
       'set START yes',
       'set SERVERTYPE mongrel',
-      'set PUPPETMASTERS 4',
+      "set PUPPETMASTERS ${nb_workers}",
     ],
-    /RedHat|CentOS|Fedora/ => [
-      'set PUPPETMASTER_EXTRA_OPTS \'"--servertype=mongrel"\'',
-      'set PUPPETMASTER_PORTS/1 18140',
-      'set PUPPETMASTER_PORTS/2 18141',
-      'set PUPPETMASTER_PORTS/3 18142',
-      'set PUPPETMASTER_PORTS/4 18143',
-    ],
+    /RedHat|CentOS|Fedora/ => split(inline_template('
+<%
+vars=Array.new;
+for i in 0..(nb_workers.to_i()-1);
+  vars << ("set PUPPETMASTER_PORTS/" << (i+1).to_s() << " " << (base_port.to_i()+i).to_s());
+end
+%>
+<%= "set PUPPETMASTER_EXTRA_OPTS \'\"--servertype=mongrel\"\'@rm PUPPETMASTER_PORTS@" << vars.join("@") %>
+'), '@'),
   }
 
   augeas {'configure puppetmaster startup variables':
