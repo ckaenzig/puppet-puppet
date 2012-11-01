@@ -23,7 +23,7 @@ class puppet::master {
     package { 'libactiverecord-ruby': ensure => present }
   } else {
     package {'activerecord':
-      ensure   => present,
+      ensure   => '3.0.17',
       provider => 'gem',
       require  => Package['ruby-dev'],
     }
